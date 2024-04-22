@@ -3,10 +3,17 @@
 Tool to track employee activity.
 
 ## Functionality
+
 - Track detailed activity for each employee
 - URL Tracking
 - Idle Time Tracking
 
+## Technologies Used
+
+- Python
+- Pascal
+- Powershell
+- Inno Setup
 
 ## Changelog for employee performance
 
