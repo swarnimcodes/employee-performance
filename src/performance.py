@@ -35,7 +35,7 @@ import emp_per_env
 load_dotenv()
 
 # GLOBAL VARIABLES
-__version__ = "v2.4.2"
+__version__ = "v2.4.3"
 API_KEY = emp_per_env.BEARER_TOKEN
 USER_LOGIN_ID = str(os.environ.get("MS_DIAGNOSTICS_USER_ID"))
 FROM_EMAIL = "noreply@mastersofterp.co.in"
@@ -44,7 +44,7 @@ IDLE_APPLICATION_NAME = "IDLE_TIME"
 LOG_FILE_NAME = "diagnostics.json"
 SETTINGS_FILE_NAME = "settings.json"
 MS_DIAGNOSTICS_FOLDER = os.path.join(os.path.expandvars("%appdata%"), "MS-Diagnostics")
-SS_FOLDER = os.path.join(MS_DIAGNOSTICS_FOLDER, "Screenshot")
+SS_FOLDER = os.path.join(MS_DIAGNOSTICS_FOLDER, "Screenshots")
 WC_FOLDER = os.path.join(MS_DIAGNOSTICS_FOLDER, "Webcam")
 RESOURCE_CONSUMPTION_LOG_FILE_NAME: str = "resource_consumption.log"
 
@@ -83,7 +83,7 @@ RESOURCE_CONSUMPTION_REQUEST_TIMEOUT = 5
 
 # SCHEDULES
 SEND_LOGS_AFTER = 60 * 5  # seconds (5 minutes)
-SEND_LOGS_AFTER = 5
+# SEND_LOGS_AFTER = 5
 FETCH_USER_SETTINGS_EVERY = 60 * 30  # ==> 30 minutes
 VERSION_POST_SCHEDULE = 60 * 60 * 4  # ==> 4 hours
 UPDATE_SCRIPT_PRESENCE_CHECK_DURATION = 60 * 30  # ==> 30 minutes
@@ -411,12 +411,21 @@ def grab_screen() -> None | Exception:
         uuid_str = generate_uuid()
         utc_time = get_filename_safe_utc_time()
         ss_folder = SS_FOLDER
+        # if not os.path.exists(SS)
         ss_file_path = os.path.join(
             ss_folder, f"{uuid_str}_{utc_time}_{USER_LOGIN_ID}.jpg"
         )
+        print(1)
         screenshot = ImageGrab.grab(all_screens=True)
-        screenshot.save(fp=ss_file_path)
-        info("Screenshot saved.")
+        print(2)
+        # FIXME: screenshot not working
+        try:
+            screenshot.save(fp=ss_file_path)
+        except Exception as errr:
+            error(f"Failed to save screenshot at `{ss_file_path}`: {errr}")
+            return errr
+        print(3)
+        info(f"Screenshot saved: {ss_file_path}")
         compression_status = compress_image(image_path=ss_file_path, quality=quality)
         if compression_status == 0:
             return None  # Successfully compressed and saved
@@ -429,8 +438,9 @@ def grab_screen() -> None | Exception:
         else:
             error(f"No such file for screenshot exists: `{ss_file_path}`")
             return None
-    except Exception as e:
-        return e
+    except Exception as err:
+        error(f"`grab_screen` failed: {err}")
+        return err
 
 
 def send_ss_and_delete() -> None:
@@ -1005,11 +1015,12 @@ def send_logs() -> None:
 def make_appdata_filetree() -> int:
     global log_file_path, LOG_FILE_NAME, settings_file_path, SETTINGS_FILE_NAME
     global resource_consumption_log_file_path, RESOURCE_CONSUMPTION_LOG_FILE_NAME
+    global SS_FOLDER, WC_FOLDER
     try:
         appdata = os.path.expandvars("%appdata%")
         diagnostics_folder = os.path.join(appdata, "MS-Diagnostics")
-        screenshots_folder = os.path.join(diagnostics_folder, "Screenshots")
-        webcam_folder = os.path.join(diagnostics_folder, "Webcam")
+        screenshots_folder = SS_FOLDER
+        webcam_folder = WC_FOLDER
         log_file = os.path.join(diagnostics_folder, LOG_FILE_NAME)
         resource_consumption_log_file_path = os.path.join(
             diagnostics_folder, RESOURCE_CONSUMPTION_LOG_FILE_NAME
@@ -1434,6 +1445,8 @@ def capture_system_resource_consumption() -> int:
 
 
 def send_mail_if_log_lines_more_than_1000():
+    if not is_remote_api_accessible():
+        return None
     global log_file_path
     n = count_lines(file_path=log_file_path)
     if n >= 1000:
@@ -1488,11 +1501,11 @@ def monitor_active_window() -> Exception:
         # schedule.every(SEND_LOGS_AFTER).seconds.do(run_threaded, send_logs)
         # schedule.every(VERSION_POST_SCHEDULE).seconds.do(run_threaded, post_version)
 
-        schedule.every(CHECK_LOG_FILE_LENGTH_EVERY).seconds.do(
-            lambda: run_threaded(
-                send_mail_if_log_lines_more_than_1000, "SendMailIfLogLinesMoreThan1000"
-            )
-        )
+        # schedule.every(CHECK_LOG_FILE_LENGTH_EVERY).seconds.do(
+        #     lambda: run_threaded(
+        #         send_mail_if_log_lines_more_than_1000, "SendMailIfLogLinesMoreThan1000"
+        #     )
+        # )
 
         schedule.every(SEND_RESOURCE_CONSUMTION_LOGS_EVERY).seconds.do(
             lambda: run_threaded(
